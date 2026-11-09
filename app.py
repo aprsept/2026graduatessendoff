@@ -215,7 +215,23 @@ if page == 'admin':
         st.stop()
     password = st.text_input('Organizer password',type='password')
     if not password or password != st.secrets['admin_password']:
-        st.info('Enter the organizer password to view registrations.')
+        st.markdown(
+            """
+            <div style="
+                background-color: #214E80;
+                color: #FFFFFF;
+                padding: 14px 20px;
+                border-radius: 10px;
+                font-size: 16px;
+                font-weight: 600;
+                border: 1px solid #8DC7FF;
+                margin-bottom: 15px;
+            ">
+                Enter the organizer password to view registrations.
+            </div>
+            """,
+            unsafe_allow_html=True
+        )
         st.stop()
     try:
         sheets, drive = google_clients()
