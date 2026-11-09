@@ -1,0 +1,5 @@
+streamlit>=1.39,<2
+gspread>=6.1,<7
+google-auth>=2.30,<3
+google-api-python-client>=2.140,<3
+pandas>=2.1,<3
