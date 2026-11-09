@@ -86,6 +86,24 @@ st.markdown(f'''<style>
 [data-testid="stFileUploader"] label *,
 [data-testid="stFileUploader"] small,
 [data-testid="stFileUploader"] [data-testid="stFileUploaderDropzoneInstructions"] * {{color:#173451 !important;-webkit-text-fill-color:#173451 !important;}}
+/* Organizer dashboard: buttons and their nested labels. */
+.stApp:has(.admin-page-marker) .stButton button,
+.stApp:has(.admin-page-marker) .stDownloadButton button {{background:#173d7c !important;color:#ffffff !important;border:1px solid #8dc7ff !important;font-weight:700 !important;}}
+.stApp:has(.admin-page-marker) .stButton button *,
+.stApp:has(.admin-page-marker) .stDownloadButton button * {{color:#ffffff !important;-webkit-text-fill-color:#ffffff !important;}}
+.stApp:has(.admin-page-marker) .stButton button:hover,
+.stApp:has(.admin-page-marker) .stDownloadButton button:hover {{background:#245a9d !important;}}
+/* Dark readable input text, white labels and captions on the blue page. */
+.stApp:has(.admin-page-marker) [data-testid="stWidgetLabel"] *,
+.stApp:has(.admin-page-marker) [data-testid="stCaptionContainer"] *,
+.stApp:has(.admin-page-marker) [data-testid="stMetric"] *,
+.stApp:has(.admin-page-marker) h1,
+.stApp:has(.admin-page-marker) h2,
+.stApp:has(.admin-page-marker) h3 {{color:#ffffff !important;-webkit-text-fill-color:#ffffff !important;}}
+.stApp:has(.admin-page-marker) input {{background:#f5f7fa !important;color:#173451 !important;-webkit-text-fill-color:#173451 !important;}}
+.stApp:has(.admin-page-marker) [data-testid="stExpander"] {{background:rgba(12,45,82,.75) !important;border-radius:12px;}}
+.stApp:has(.admin-page-marker) [data-testid="stExpander"] summary *,
+.stApp:has(.admin-page-marker) [data-testid="stExpander"] [data-testid="stMarkdownContainer"] p {{color:#ffffff !important;-webkit-text-fill-color:#ffffff !important;}}
 /* Organizer empty-state message. */
 .admin-empty-state {{background:#173d7c;color:#ffffff !important;padding:14px 18px;border-radius:12px;margin:10px 0;}}
 .admin-empty-state * {{color:#ffffff !important;-webkit-text-fill-color:#ffffff !important;}}
@@ -190,6 +208,7 @@ st.markdown('''Join us as we celebrate our 2026 graduates and send them off with
 
 page = st.query_params.get('page','register')
 if page == 'admin':
+    st.markdown('<span class="admin-page-marker" style="display:none"></span>', unsafe_allow_html=True)
     st.subheader('🔐 Organizer dashboard')
     if 'admin_password' not in st.secrets or 'google_sheet_id' not in st.secrets:
         st.error('Organizer backend is not configured yet. Follow README.md.')
@@ -318,26 +337,7 @@ if submitted:
             record=[registration_id,datetime.now(timezone.utc).isoformat(),name.strip(),email.strip().lower(),mobile.strip(),participant_type,
                 has_submission,submission_type.strip(),submission_minutes if has_submission=='Yes' else '',submission_link.strip(),receipt_id,'Pending verification','','','','']
             sheet.append_row(record,value_input_option='RAW')
-            st.markdown(
-                f"""
-                <div style="
-                    background-color: #174B3A;
-                    color: #B9FFCF;
-                    padding: 18px 22px;
-                    border-radius: 12px;
-                    border: 1px solid #73E6A0;
-                    font-size: 16px;
-                    font-weight: 600;
-                    line-height: 1.7;
-                ">
-                    Registration received! Your registration ID is
-                    <strong>{registration_id}</strong>.
-                    The committee will verify your Zelle payment.
-                    Your entry QR code will be emailed only after approval.
-                </div>
-                """,
-                unsafe_allow_html=True
-            )
+            st.markdown(f'''<div style="background:#174b3a;color:#b9ffcf;padding:18px 22px;border-radius:12px;border:1px solid #73e6a0;font-weight:650;line-height:1.7;">Registration received! Your registration ID is <strong style="color:#b9ffcf;">{registration_id}</strong>. The committee will verify your Zelle payment. Your entry QR code will be emailed only after approval.</div>''', unsafe_allow_html=True)
             st.balloons()
         except Exception:
             logger.exception('Registration submission failed (Google authentication, receipt upload, or sheet append)')
