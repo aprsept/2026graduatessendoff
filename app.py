@@ -280,21 +280,51 @@ if page == 'admin':
                             except Exception:
                                 st.error('Email failed again. Check SMTP configuration.')
                             st.rerun()
-            st.subheader('Event-day check-in')
-            st.caption('Scan the QR with a phone QR scanner and paste the decoded text here, or type the ticket code.')
-            scanned = st.text_input('QR code content',placeholder='SENDOFF2026:...')
-            if st.button('Check in participant'):
-                token = scanned.strip().removeprefix('SENDOFF2026:')
-                found = [(i,r) for i,r in enumerate(records,start=2) if r['qr_token'] and hmac.compare_digest(r['qr_token'],token)]
-                if not found:
-                    st.error('Invalid QR code.')
-                else:
-                    i,r=found[0]
-                    if r['payment_status']!='Approved': st.error('Payment not approved.')
-                    elif r['checked_in_at_utc']: st.warning(f"Already checked in: {r['name']}")
+            st.subheader('📷 Event-day QR check-in')
+            st.caption('Open this organizer dashboard on a phone, allow camera access, and photograph the attendee’s QR ticket. You can also paste the QR content manually.')
+            camera_photo = st.camera_input('Scan a participant QR ticket', key='ticket_camera')
+            decoded_qr = ''
+            if camera_photo is not None:
+                try:
+                    import cv2
+                    import numpy as np
+                    image_bytes = np.frombuffer(camera_photo.getvalue(), dtype=np.uint8)
+                    image_array = cv2.imdecode(image_bytes, cv2.IMREAD_COLOR)
+                    if image_array is not None:
+                        decoded_qr, _, _ = cv2.QRCodeDetector().detectAndDecode(image_array)
+                    if decoded_qr:
+                        st.success('QR code recognized. Click Check in participant to confirm.')
                     else:
-                        update_fields(sheet,i,{'checked_in_at_utc':datetime.now(timezone.utc).isoformat()})
-                        st.success(f"Checked in: {r['name']}")
+                        st.warning('No readable QR code found. Try moving closer, improving the lighting, or using manual entry.')
+                except Exception:
+                    logger.exception('QR camera decoding failed')
+                    st.error('Camera QR decoding failed. Check that opencv-python-headless is installed, or use manual entry.')
+            manual_qr = st.text_input('Or paste QR code content', placeholder='SENDOFF2026:...', key='manual_ticket_qr')
+            if st.button('Check in participant', type='primary', key='confirm_ticket_checkin'):
+                raw_qr = (manual_qr or decoded_qr).strip()
+                if not raw_qr:
+                    st.error('Please scan a QR code or enter the ticket code first.')
+                elif not raw_qr.startswith('SENDOFF2026:'):
+                    st.error('This is not a valid Send-off QR ticket.')
+                else:
+                    token = raw_qr.removeprefix('SENDOFF2026:')
+                    # Reload before checking to catch check-ins from other volunteers.
+                    fresh_values = sheet.get_all_values()
+                    fresh_records = [dict(zip(FIELDS, row + [''] * max(0, len(FIELDS) - len(row)))) for row in fresh_values[1:]]
+                    found = [(i, r) for i, r in enumerate(fresh_records, start=2)
+                             if r['qr_token'] and hmac.compare_digest(r['qr_token'], token)]
+                    if not found:
+                        st.error('Invalid QR code: no matching ticket found.')
+                    else:
+                        i, r = found[0]
+                        if r['payment_status'] != 'Approved':
+                            st.error('Payment not approved. Do not admit this attendee.')
+                        elif r['checked_in_at_utc']:
+                            st.warning(f"Already checked in: {r['name']}")
+                        else:
+                            update_fields(sheet, i, {'checked_in_at_utc': datetime.now(timezone.utc).isoformat()})
+                            st.success(f"Checked in successfully: {r['name']}")
+                            st.info('Ready for the next participant. Clear the camera photo and scan the next ticket.')
         else:
             st.markdown('<div class="admin-empty-state">No registrations yet.</div>', unsafe_allow_html=True)
     except Exception:
