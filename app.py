@@ -1,5 +1,8 @@
 import base64
 import io
+import hmac
+import smtplib
+from email.message import EmailMessage
 import re
 from datetime import datetime, timezone
 from pathlib import Path
@@ -42,7 +45,7 @@ def google_clients():
 
 FIELDS = ['registration_id','submitted_at_utc','name','email','mobile','participant_type',
           'has_submission','submission_type','submission_minutes','submission_link',
-          'receipt_drive_file_id','payment_status']
+          'receipt_drive_file_id','payment_status','qr_token','email_status','checked_in_at_utc','verified_at_utc']
 
 def worksheet(client):
     sheet = client.open_by_key(st.secrets['google_sheet_id']).sheet1
@@ -57,6 +60,41 @@ def upload_receipt(drive, uploaded, registration_id):
     file = drive.files().create(body={'name':f'{registration_id}_receipt.{uploaded.name.rsplit(".",1)[-1].lower()}',
         'parents':[st.secrets['receipt_folder_id']]},media_body=media,fields='id').execute()
     return file['id']
+
+def make_qr_png(token):
+    import qrcode
+    out = io.BytesIO()
+    qrcode.make(f"SENDOFF2026:{token}").save(out, format='PNG')
+    return out.getvalue()
+
+def send_ticket(email, name, token):
+    # Configure [smtp] in Streamlit Secrets. SMTP is used only on committee approval.
+    smtp = st.secrets['smtp']
+    msg = EmailMessage()
+    msg['Subject'] = '2026 Graduates Send-off — Your confirmed entry QR code'
+    msg['From'] = smtp['sender_email']
+    msg['To'] = email
+    msg.set_content(f"""Hello {name},
+
+Your $10 payment has been verified and your registration is confirmed!
+
+2026 Graduates Send-off
+Friday, December 4, 2026 | 5:00–7:00 PM
+KJRI New York
+
+Please show the attached QR code at check-in. Each code can be checked in once.
+
+See you there!
+The Organizing Committee
+""")
+    msg.add_attachment(make_qr_png(token), maintype='image', subtype='png', filename='sendoff-entry-qr.png')
+    with smtplib.SMTP_SSL(smtp.get('host','smtp.gmail.com'), int(smtp.get('port',465)), timeout=25) as server:
+        server.login(smtp['username'], smtp['app_password'])
+        server.send_message(msg)
+
+def update_fields(sheet, row_number, changes):
+    from gspread.utils import rowcol_to_a1
+    sheet.batch_update([{'range':rowcol_to_a1(row_number,FIELDS.index(key)+1), 'values':[[value]]} for key,value in changes.items()])
 
 st.markdown(f'<img class="logo" src="data:image/png;base64,{logo}" alt="Columbia Indonesian Society logo">',unsafe_allow_html=True)
 st.markdown('''<div class="hero"><span class="pill">YOU’RE INVITED</span>
@@ -76,22 +114,72 @@ if page == 'admin':
         st.info('Enter the organizer password to view registrations.')
         st.stop()
     try:
-        sheets, _ = google_clients()
-        rows = worksheet(sheets).get_all_records()
-        df = pd.DataFrame(rows,columns=FIELDS)
+        sheets, drive = google_clients()
+        sheet = worksheet(sheets)
+        values = sheet.get_all_values()
+        records = [dict(zip(FIELDS, row + [''] * max(0,len(FIELDS)-len(row)))) for row in values[1:]]
+        df = pd.DataFrame(records, columns=FIELDS)
         st.metric('Total registrations',len(df))
-        if len(df):
+        if records:
             a,b,c = st.columns(3)
-            a.metric('Graduates',(df['participant_type']=='Graduate').sum())
-            b.metric('Non-graduates',(df['participant_type']=='Non-graduate').sum())
-            c.metric('Performances',(df['has_submission']=='Yes').sum())
-            st.dataframe(df,use_container_width=True,hide_index=True)
-            st.download_button('Download CSV',df.to_csv(index=False).encode('utf-8'),file_name='graduates_sendoff_registrations.csv',mime='text/csv')
-            st.caption('Receipts are stored privately in the configured Google Drive folder. Payment status is pending until the organizer verifies the Zelle transaction.')
+            a.metric('Pending',sum(r['payment_status']=='Pending verification' for r in records))
+            b.metric('Approved',sum(r['payment_status']=='Approved' for r in records))
+            c.metric('Checked in',sum(bool(r['checked_in_at_utc']) for r in records))
+            st.download_button('Download registrations CSV',df.to_csv(index=False),file_name='sendoff_registrations.csv',mime='text/csv')
+            st.subheader('Review payments')
+            for row_num, r in enumerate(records, start=2):
+                with st.expander(f"{r['name']} · {r['registration_id']} · {r['payment_status']}"):
+                    st.write(f"{r['email']} · {r['participant_type']}")
+                    st.write('Receipt Drive file ID:',r['receipt_drive_file_id'])
+                    st.caption('Open the receipt in the private Google Drive folder and independently verify the Zelle transaction before approving.')
+                    if r['payment_status'] == 'Pending verification':
+                        left,right = st.columns(2)
+                        if left.button('Approve and email QR',key=f"approve_{row_num}"):
+                            token = uuid4().hex
+                            now = datetime.now(timezone.utc).isoformat()
+                            # Persist token and approval BEFORE email, to prevent issuing multiple tickets.
+                            update_fields(sheet,row_num,{'payment_status':'Approved','qr_token':token,'verified_at_utc':now,'email_status':'Pending send'})
+                            try:
+                                send_ticket(r['email'],r['name'],token)
+                                update_fields(sheet,row_num,{'email_status':'Sent'})
+                                st.success('Approved; QR email sent.')
+                            except Exception:
+                                update_fields(sheet,row_num,{'email_status':'Send failed'})
+                                st.error('Payment approved but email failed. Configure SMTP and use the retry action.')
+                            st.rerun()
+                        if right.button('Reject payment',key=f"reject_{row_num}"):
+                            update_fields(sheet,row_num,{'payment_status':'Rejected'})
+                            st.rerun()
+                    elif r['payment_status']=='Approved':
+                        st.write('Email status:',r['email_status'] or 'Not sent')
+                        if r['email_status']!='Sent' and st.button('Retry sending QR email',key=f"retry_{row_num}"):
+                            try:
+                                send_ticket(r['email'],r['name'],r['qr_token'])
+                                update_fields(sheet,row_num,{'email_status':'Sent'})
+                                st.success('Email sent.')
+                            except Exception:
+                                st.error('Email failed again. Check SMTP configuration.')
+                            st.rerun()
+            st.subheader('Event-day check-in')
+            st.caption('Scan the QR with a phone QR scanner and paste the decoded text here, or type the ticket code.')
+            scanned = st.text_input('QR code content',placeholder='SENDOFF2026:...')
+            if st.button('Check in participant'):
+                token = scanned.strip().removeprefix('SENDOFF2026:')
+                found = [(i,r) for i,r in enumerate(records,start=2) if r['qr_token'] and hmac.compare_digest(r['qr_token'],token)]
+                if not found:
+                    st.error('Invalid QR code.')
+                else:
+                    i,r=found[0]
+                    if r['payment_status']!='Approved': st.error('Payment not approved.')
+                    elif r['checked_in_at_utc']: st.warning(f"Already checked in: {r['name']}")
+                    else:
+                        update_fields(sheet,i,{'checked_in_at_utc':datetime.now(timezone.utc).isoformat()})
+                        st.success(f"Checked in: {r['name']}")
         else:
             st.info('No registrations yet.')
-    except Exception:
-        st.error('Unable to load organizer records. Check Google permissions and Streamlit secrets.')
+    except Exception as exc:
+        st.error('Unable to load or update organizer records. Check permissions and secrets.')
+        st.caption(str(exc))
     st.stop()
 
 with st.form('registration',clear_on_submit=False):
@@ -141,9 +229,9 @@ if submitted:
             registration_id = uuid4().hex[:12].upper()
             receipt_id = upload_receipt(drive,receipt,registration_id)
             record=[registration_id,datetime.now(timezone.utc).isoformat(),name.strip(),email.strip().lower(),mobile.strip(),participant_type,
-                has_submission,submission_type.strip(),submission_minutes if has_submission=='Yes' else '',submission_link.strip(),receipt_id,'Pending verification']
+                has_submission,submission_type.strip(),submission_minutes if has_submission=='Yes' else '',submission_link.strip(),receipt_id,'Pending verification','','','','']
             sheet.append_row(record,value_input_option='RAW')
-            st.success(f'Registration received! Your registration ID is {registration_id}. Payment is pending organizer verification.')
+            st.success(f'Registration received! Your registration ID is {registration_id}. The committee will verify your Zelle payment. Your entry QR code will be emailed only after approval.')
             st.balloons()
         except Exception:
             st.error('We could not save your registration. Please contact the organizer before trying again to avoid duplicate payments or submissions.')
