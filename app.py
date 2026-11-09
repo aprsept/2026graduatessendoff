@@ -1,6 +1,7 @@
 import base64
 import io
 import hmac
+from html import escape
 import logging
 import smtplib
 from email.message import EmailMessage
@@ -104,6 +105,9 @@ st.markdown(f'''<style>
 .stApp:has(.admin-page-marker) [data-testid="stExpander"] {{background:rgba(12,45,82,.75) !important;border-radius:12px;}}
 .stApp:has(.admin-page-marker) [data-testid="stExpander"] summary *,
 .stApp:has(.admin-page-marker) [data-testid="stExpander"] [data-testid="stMarkdownContainer"] p {{color:#ffffff !important;-webkit-text-fill-color:#ffffff !important;}}
+/* High contrast camera scanner status messages. */
+.qr-success-message {{background:#174b3a !important;color:#ffffff !important;border:1px solid #73e6a0;border-radius:12px;padding:15px 18px;font-weight:700;line-height:1.6;margin:10px 0;}}
+.qr-info-message {{background:#173d7c !important;color:#ffffff !important;border:1px solid #8dc7ff;border-radius:12px;padding:15px 18px;font-weight:650;line-height:1.6;margin:10px 0;}}
 /* Organizer empty-state message. */
 .admin-empty-state {{background:#173d7c;color:#ffffff !important;padding:14px 18px;border-radius:12px;margin:10px 0;}}
 .admin-empty-state * {{color:#ffffff !important;-webkit-text-fill-color:#ffffff !important;}}
@@ -293,7 +297,7 @@ if page == 'admin':
                     if image_array is not None:
                         decoded_qr, _, _ = cv2.QRCodeDetector().detectAndDecode(image_array)
                     if decoded_qr:
-                        st.success('QR code recognized. Click Check in participant to confirm.')
+                        st.markdown('<div class="qr-success-message">QR code recognized. Click Check in participant to confirm.</div>', unsafe_allow_html=True)
                     else:
                         st.warning('No readable QR code found. Try moving closer, improving the lighting, or using manual entry.')
                 except Exception:
@@ -323,8 +327,8 @@ if page == 'admin':
                             st.warning(f"Already checked in: {r['name']}")
                         else:
                             update_fields(sheet, i, {'checked_in_at_utc': datetime.now(timezone.utc).isoformat()})
-                            st.success(f"Checked in successfully: {r['name']}")
-                            st.info('Ready for the next participant. Clear the camera photo and scan the next ticket.')
+                            st.markdown(f'<div class="qr-success-message">Checked in successfully: {escape(r["name"])}</div>', unsafe_allow_html=True)
+                            st.markdown('<div class="qr-info-message">Ready for the next participant. Clear the camera photo and scan the next ticket.</div>', unsafe_allow_html=True)
         else:
             st.markdown('<div class="admin-empty-state">No registrations yet.</div>', unsafe_allow_html=True)
     except Exception:
