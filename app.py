@@ -1,6 +1,7 @@
 import base64
 import io
 import hmac
+import logging
 import smtplib
 from email.message import EmailMessage
 import re
@@ -13,6 +14,7 @@ import streamlit as st
 
 st.set_page_config(page_title="2026 Graduates Send-off", page_icon="🎓", layout="centered", initial_sidebar_state="collapsed")
 ROOT = Path(__file__).parent
+logger = logging.getLogger(__name__)
 
 def image_data(path):
     return base64.b64encode((ROOT / path).read_bytes()).decode()
@@ -69,6 +71,13 @@ st.markdown(f'''<style>
 [data-testid="stVerticalBlockBorderWrapper"] [data-baseweb="input"] *,
 [data-testid="stVerticalBlockBorderWrapper"] [data-baseweb="select"] *,
 [data-testid="stVerticalBlockBorderWrapper"] [data-baseweb="textarea"] * {{color:#173451 !important;}}
+/* Ensure registration failure alert text stays white and readable. */
+[data-testid="stAlert"]:has([data-testid="stAlertContentError"]) {{background:#9f2440 !important;}}
+[data-testid="stAlert"]:has([data-testid="stAlertContentError"]) *,
+[data-testid="stAlertContentError"] * {{color:#ffffff !important;-webkit-text-fill-color:#ffffff !important;}}
+/* Organizer empty-state message. */
+.admin-empty-state {{background:#173d7c;color:#ffffff !important;padding:14px 18px;border-radius:12px;margin:10px 0;}}
+.admin-empty-state * {{color:#ffffff !important;-webkit-text-fill-color:#ffffff !important;}}
 /* Submit button: force white text even with Streamlit's dark theme. */
 .st-key-submit_registration button,
 .st-key-submit_registration button p,
@@ -86,7 +95,11 @@ def google_clients():
     import gspread
     from google.oauth2.service_account import Credentials
     from googleapiclient.discovery import build
-    creds = Credentials.from_service_account_info(dict(st.secrets['gcp_service_account']), scopes=[
+    service_info = dict(st.secrets['gcp_service_account'])
+    # Support either escaped \n sequences or actual newlines in Streamlit TOML secrets.
+    if 'private_key' in service_info:
+        service_info['private_key'] = service_info['private_key'].replace('\\n', '\n').strip() + '\n'
+    creds = Credentials.from_service_account_info(service_info, scopes=[
         'https://www.googleapis.com/auth/spreadsheets', 'https://www.googleapis.com/auth/drive'])
     return gspread.authorize(creds), build('drive', 'v3', credentials=creds)
 
@@ -223,10 +236,10 @@ if page == 'admin':
                         update_fields(sheet,i,{'checked_in_at_utc':datetime.now(timezone.utc).isoformat()})
                         st.success(f"Checked in: {r['name']}")
         else:
-            st.info('No registrations yet.')
-    except Exception as exc:
-        st.error('Unable to load or update organizer records. Check permissions and secrets.')
-        st.caption(str(exc))
+            st.markdown('<div class="admin-empty-state">No registrations yet.</div>', unsafe_allow_html=True)
+    except Exception:
+        logger.exception('Organizer dashboard failed')
+        st.error('Unable to load or update organizer records. Check permissions and secrets. See Streamlit server logs for details.')
     st.stop()
 
 # Use a normal container: radio changes must rerun immediately to reveal conditional fields.
@@ -283,6 +296,7 @@ if submitted:
             st.success(f'Registration received! Your registration ID is {registration_id}. The committee will verify your Zelle payment. Your entry QR code will be emailed only after approval.')
             st.balloons()
         except Exception:
-            st.error('We could not save your registration. Please contact the organizer before trying again to avoid duplicate payments or submissions.')
+            logger.exception('Registration submission failed (Google authentication, receipt upload, or sheet append)')
+            st.error('We could not save your registration. Please contact the organizer before trying again to avoid duplicate payments or submissions. The technical error is available in the organizer’s Streamlit logs.')
 
 st.caption('Organized by Columbia Indonesian Society · Questions? Contact the event organizers. Payment receipts are accessible only to authorized organizers.')
