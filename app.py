@@ -30,6 +30,9 @@ st.markdown(f'''<style>
 [data-testid="stForm"] {{padding:1.2rem 1.5rem;box-shadow:0 12px 35px #0e4b7733;}}
 .stButton button[kind="primary"],.stFormSubmitButton button {{background:#173d7c;color:white;border-radius:12px;border:none;}}
 .smallnote {{color:#193e63;font-size:.93rem;}}
+/* High contrast payment notice in both Streamlit themes. */
+.payment-notice {background:#e7f1fc !important;color:#173451 !important;border:1px solid #9bbbd9;border-left:5px solid #245a9d;border-radius:12px;padding:16px 18px;line-height:1.65;margin:12px 0 20px;}
+.payment-notice strong {color:#102d50 !important;font-weight:750;}
 /* Keep the invitation readable against the watercolor background. */
 .stApp .block-container > div [data-testid="stMarkdownContainer"] p {{color:#153956;}}
 .stApp .block-container > div [data-testid="stMarkdownContainer"] strong {{color:inherit;}}
@@ -207,7 +210,8 @@ if page == 'admin':
         st.caption(str(exc))
     st.stop()
 
-with st.form('registration',clear_on_submit=False):
+# Use a normal container: radio changes must rerun immediately to reveal conditional fields.
+with st.container(border=True):
     st.subheader('Registration form')
     name = st.text_input('Full name *',max_chars=150)
     email = st.text_input('Email address *',max_chars=254)
@@ -224,14 +228,15 @@ with st.form('registration',clear_on_submit=False):
         submission_link = st.text_input('Link to your submission (optional)',placeholder='https://drive.google.com/...')
         upload_url = st.secrets.get('submission_upload_url','')
         if upload_url:
-            st.markdown(f'**[Upload your submission to Google Drive]({upload_url})** (if applicable). Please make sure the organizers have access.')
+            st.link_button('Upload your submission to Google Drive', upload_url, use_container_width=True)
+            st.caption('Upload using the link, then paste a shareable file link above if available. A standard folder link may not allow uploads without editor access.')
         else:
             st.info('The organizer will provide the Google Drive upload link. You can submit your registration now.')
     st.markdown('#### Engagement fee · $10')
-    st.info('Pay **$10 via Zelle** to **Septy — (646) 295-2209**. Confirm the recipient in Zelle before sending. Payment will be manually verified.')
+    st.markdown('''<div class="payment-notice">Pay <strong>$10 via Zelle</strong> to <strong>Septy — (646) 295-2209</strong>.<br>Confirm the recipient in Zelle before sending. Payment will be manually verified.</div>''', unsafe_allow_html=True)
     receipt = st.file_uploader('Upload proof of payment * (PDF, JPG or PNG)',type=['pdf','jpg','jpeg','png'],accept_multiple_files=False)
     consent = st.checkbox('I confirm that my information is accurate and agree that organizers may use it to manage this event. *')
-    submitted = st.form_submit_button('Submit registration',type='primary',use_container_width=True)
+    submitted = st.button('Submit registration',type='primary',use_container_width=True, key='submit_registration')
 
 if submitted:
     errors=[]
