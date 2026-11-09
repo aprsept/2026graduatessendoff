@@ -75,6 +75,17 @@ st.markdown(f'''<style>
 [data-testid="stAlert"]:has([data-testid="stAlertContentError"]) {{background:#9f2440 !important;}}
 [data-testid="stAlert"]:has([data-testid="stAlertContentError"]) *,
 [data-testid="stAlertContentError"] * {{color:#ffffff !important;-webkit-text-fill-color:#ffffff !important;}}
+/* White readable text on submission upload link and payment proof picker. */
+[data-testid="stLinkButton"] a, [data-testid="stLinkButton"] a *,
+[data-testid="stFileUploader"] button, [data-testid="stFileUploader"] button *,
+[data-testid="stFileUploader"] [data-testid="stBaseButton-secondary"],
+[data-testid="stFileUploader"] [data-testid="stBaseButton-secondary"] * {{color:#ffffff !important;-webkit-text-fill-color:#ffffff !important;}}
+[data-testid="stLinkButton"] a,
+[data-testid="stFileUploader"] button {{background:#173d7c !important;border-color:#173d7c !important;}}
+/* Keep the uploader's surrounding instructions dark on light backgrounds. */
+[data-testid="stFileUploader"] label *,
+[data-testid="stFileUploader"] small,
+[data-testid="stFileUploader"] [data-testid="stFileUploaderDropzoneInstructions"] * {{color:#173451 !important;-webkit-text-fill-color:#173451 !important;}}
 /* Organizer empty-state message. */
 .admin-empty-state {{background:#173d7c;color:#ffffff !important;padding:14px 18px;border-radius:12px;margin:10px 0;}}
 .admin-empty-state * {{color:#ffffff !important;-webkit-text-fill-color:#ffffff !important;}}
@@ -92,16 +103,30 @@ st.markdown(f'''<style>
 # Streamlit Cloud local files are ephemeral, so this app intentionally does not pretend
 # local SQLite/CSV storage is a durable production backend.
 def google_clients():
+    """Use the service account for Sheets and the user's OAuth for My Drive."""
     import gspread
-    from google.oauth2.service_account import Credentials
+    from google.oauth2.service_account import Credentials as ServiceAccountCredentials
     from googleapiclient.discovery import build
+    from google.oauth2.credentials import Credentials as UserCredentials
+
     service_info = dict(st.secrets['gcp_service_account'])
-    # Support either escaped \n sequences or actual newlines in Streamlit TOML secrets.
     if 'private_key' in service_info:
         service_info['private_key'] = service_info['private_key'].replace('\\n', '\n').strip() + '\n'
-    creds = Credentials.from_service_account_info(service_info, scopes=[
-        'https://www.googleapis.com/auth/spreadsheets', 'https://www.googleapis.com/auth/drive'])
-    return gspread.authorize(creds), build('drive', 'v3', credentials=creds)
+    sheets_creds = ServiceAccountCredentials.from_service_account_info(
+        service_info, scopes=['https://www.googleapis.com/auth/spreadsheets'])
+    sheets = gspread.authorize(sheets_creds)
+
+    oauth = st.secrets['google_oauth']
+    drive_creds = UserCredentials(
+        token=None,
+        refresh_token=oauth['refresh_token'],
+        token_uri='https://oauth2.googleapis.com/token',
+        client_id=oauth['client_id'],
+        client_secret=oauth['client_secret'],
+        scopes=['https://www.googleapis.com/auth/drive'],
+    )
+    drive = build('drive', 'v3', credentials=drive_creds, cache_discovery=False)
+    return sheets, drive
 
 FIELDS = ['registration_id','submitted_at_utc','name','email','mobile','participant_type',
           'has_submission','submission_type','submission_minutes','submission_link',
@@ -282,7 +307,7 @@ if submitted:
     if not consent: errors.append('Please confirm the consent checkbox.')
     if errors:
         for e in errors: st.error(e)
-    elif 'gcp_service_account' not in st.secrets or 'google_sheet_id' not in st.secrets or 'receipt_folder_id' not in st.secrets:
+    elif 'gcp_service_account' not in st.secrets or 'google_sheet_id' not in st.secrets or 'receipt_folder_id' not in st.secrets or 'google_oauth' not in st.secrets:
         st.error('Registration is not live yet: the organizer needs to configure Google Sheets and Drive storage. No registration was saved.')
     else:
         try:
