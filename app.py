@@ -58,6 +58,25 @@ st.markdown(f'''<style>
 [data-testid="stForm"] [data-testid="stFormSubmitButton"] button {{background:#173d7c !important;color:#ffffff !important;}}
 [data-testid="stForm"] [data-testid="stFormSubmitButton"] button * {{color:#ffffff !important;}}
 
+
+/* Registration uses st.container(border=True), not st.form. */
+[data-testid="stVerticalBlockBorderWrapper"] input,
+[data-testid="stVerticalBlockBorderWrapper"] textarea,
+[data-testid="stVerticalBlockBorderWrapper"] [data-baseweb="select"] > div,
+[data-testid="stVerticalBlockBorderWrapper"] [data-baseweb="base-input"] {{background-color:#f5f7fa !important;color:#173451 !important;border-color:#cbd5e1 !important;}}
+[data-testid="stVerticalBlockBorderWrapper"] input::placeholder,
+[data-testid="stVerticalBlockBorderWrapper"] textarea::placeholder {{color:#64748b !important;opacity:1;}}
+[data-testid="stVerticalBlockBorderWrapper"] [data-baseweb="input"] *,
+[data-testid="stVerticalBlockBorderWrapper"] [data-baseweb="select"] *,
+[data-testid="stVerticalBlockBorderWrapper"] [data-baseweb="textarea"] * {{color:#173451 !important;}}
+/* Submit button: force white text even with Streamlit's dark theme. */
+.st-key-submit_registration button,
+.st-key-submit_registration button p,
+.st-key-submit_registration button span,
+.st-key-submit_registration button [data-testid="stMarkdownContainer"] * {{color:#ffffff !important;-webkit-text-fill-color:#ffffff !important;}}
+.st-key-submit_registration button {{background:#173d7c !important;border:1px solid #173d7c !important;}}
+.st-key-submit_registration button:hover {{background:#245a9d !important;}}
+
 </style>''', unsafe_allow_html=True)
 
 # Production storage: Google Sheets for registration records and Google Drive for receipts.
