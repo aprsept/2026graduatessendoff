@@ -31,8 +31,8 @@ st.markdown(f'''<style>
 .stButton button[kind="primary"],.stFormSubmitButton button {{background:#173d7c;color:white;border-radius:12px;border:none;}}
 .smallnote {{color:#193e63;font-size:.93rem;}}
 /* High contrast payment notice in both Streamlit themes. */
-.payment-notice {background:#e7f1fc !important;color:#173451 !important;border:1px solid #9bbbd9;border-left:5px solid #245a9d;border-radius:12px;padding:16px 18px;line-height:1.65;margin:12px 0 20px;}
-.payment-notice strong {color:#102d50 !important;font-weight:750;}
+.payment-notice {{background:#e7f1fc !important;color:#173451 !important;border:1px solid #9bbbd9;border-left:5px solid #245a9d;border-radius:12px;padding:16px 18px;line-height:1.65;margin:12px 0 20px;}}
+.payment-notice strong {{color:#102d50 !important;font-weight:750;}}
 /* Keep the invitation readable against the watercolor background. */
 .stApp .block-container > div [data-testid="stMarkdownContainer"] p {{color:#153956;}}
 .stApp .block-container > div [data-testid="stMarkdownContainer"] strong {{color:inherit;}}
