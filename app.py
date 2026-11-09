@@ -160,12 +160,26 @@ def worksheet(client):
         sheet.append_row(FIELDS)
     return sheet
 
-def upload_receipt(drive, uploaded, registration_id):
+def upload_receipt(drive, uploaded, participant_name):
+    """Store a receipt in Drive under the participant's name."""
     from googleapiclient.http import MediaIoBaseUpload
-    mime = {'pdf':'application/pdf','jpg':'image/jpeg','jpeg':'image/jpeg','png':'image/png'}[uploaded.name.rsplit('.',1)[-1].lower()]
+
+    extension = uploaded.name.rsplit('.', 1)[-1].lower()
+    mime = {
+        'pdf': 'application/pdf',
+        'jpg': 'image/jpeg',
+        'jpeg': 'image/jpeg',
+        'png': 'image/png',
+    }[extension]
+    safe_name = re.sub(r'[^\w\s-]', '', participant_name, flags=re.UNICODE).strip()
+    safe_name = re.sub(r'\s+', ' ', safe_name) or 'Participant'
+    filename = f'{safe_name}_receipt.{extension}'
     media = MediaIoBaseUpload(io.BytesIO(uploaded.getvalue()), mimetype=mime, resumable=False)
-    file = drive.files().create(body={'name':f'{registration_id}_receipt.{uploaded.name.rsplit(".",1)[-1].lower()}',
-        'parents':[st.secrets['receipt_folder_id']]},media_body=media,fields='id').execute()
+    file = drive.files().create(
+        body={'name': filename, 'parents': [st.secrets['receipt_folder_id']]},
+        media_body=media,
+        fields='id',
+    ).execute()
     return file['id']
 
 def make_qr_png(token):
@@ -383,7 +397,7 @@ if submitted:
             sheets, drive = google_clients()
             sheet = worksheet(sheets)
             registration_id = uuid4().hex[:12].upper()
-            receipt_id = upload_receipt(drive,receipt,registration_id)
+            receipt_id = upload_receipt(drive,receipt,name.strip())
             record=[registration_id,datetime.now(timezone.utc).isoformat(),name.strip(),email.strip().lower(),mobile.strip(),participant_type,
                 has_submission,submission_type.strip(),submission_minutes if has_submission=='Yes' else '',submission_link.strip(),receipt_id,'Pending verification','','','','']
             sheet.append_row(record,value_input_option='RAW')
