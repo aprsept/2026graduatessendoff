@@ -30,6 +30,31 @@ st.markdown(f'''<style>
 [data-testid="stForm"] {{padding:1.2rem 1.5rem;box-shadow:0 12px 35px #0e4b7733;}}
 .stButton button[kind="primary"],.stFormSubmitButton button {{background:#173d7c;color:white;border-radius:12px;border:none;}}
 .smallnote {{color:#193e63;font-size:.93rem;}}
+/* Keep the invitation readable against the watercolor background. */
+.stApp .block-container > div [data-testid="stMarkdownContainer"] p {{color:#153956;}}
+.stApp .block-container > div [data-testid="stMarkdownContainer"] strong {{color:inherit;}}
+.hero, .hero h1, .hero p, .hero b {{color:#ffffff !important;}}
+.hero .pill {{color:#263951 !important;}}
+.logo {{width:245px;max-width:65%;height:auto;object-fit:contain;}}
+/* The registration form is light regardless of the visitor's Streamlit theme. */
+[data-testid="stForm"] {{background:#f8fbff !important;border:1px solid #d5e2ef !important;}}
+[data-testid="stForm"] h1, [data-testid="stForm"] h2, [data-testid="stForm"] h3,
+[data-testid="stForm"] p, [data-testid="stForm"] label,
+[data-testid="stForm"] [data-testid="stWidgetLabel"] *,
+[data-testid="stForm"] [data-testid="stMarkdownContainer"] *,
+[data-testid="stForm"] [data-testid="stCaptionContainer"] {{color:#173451 !important;}}
+[data-testid="stForm"] input,
+[data-testid="stForm"] textarea,
+[data-testid="stForm"] [data-baseweb="select"] > div {{background:#ffffff !important;color:#173451 !important;border:1px solid #a8bfd2 !important;border-radius:9px;}}
+[data-testid="stForm"] input::placeholder,
+[data-testid="stForm"] textarea::placeholder {{color:#65788a !important;opacity:1;}}
+[data-testid="stForm"] [data-baseweb="select"] *,
+[data-testid="stForm"] [data-baseweb="input"] *,
+[data-testid="stForm"] [data-baseweb="textarea"] * {{color:#173451 !important;}}
+[data-testid="stForm"] button[kind="primaryFormSubmit"],
+[data-testid="stForm"] [data-testid="stFormSubmitButton"] button {{background:#173d7c !important;color:#ffffff !important;}}
+[data-testid="stForm"] [data-testid="stFormSubmitButton"] button * {{color:#ffffff !important;}}
+
 </style>''', unsafe_allow_html=True)
 
 # Production storage: Google Sheets for registration records and Google Drive for receipts.
