@@ -318,7 +318,26 @@ if submitted:
             record=[registration_id,datetime.now(timezone.utc).isoformat(),name.strip(),email.strip().lower(),mobile.strip(),participant_type,
                 has_submission,submission_type.strip(),submission_minutes if has_submission=='Yes' else '',submission_link.strip(),receipt_id,'Pending verification','','','','']
             sheet.append_row(record,value_input_option='RAW')
-            st.success(f'Registration received! Your registration ID is {registration_id}. The committee will verify your Zelle payment. Your entry QR code will be emailed only after approval.')
+            st.markdown(
+                f"""
+                <div style="
+                    background-color: #174B3A;
+                    color: #B9FFCF;
+                    padding: 18px 22px;
+                    border-radius: 12px;
+                    border: 1px solid #73E6A0;
+                    font-size: 16px;
+                    font-weight: 600;
+                    line-height: 1.7;
+                ">
+                    Registration received! Your registration ID is
+                    <strong>{registration_id}</strong>.
+                    The committee will verify your Zelle payment.
+                    Your entry QR code will be emailed only after approval.
+                </div>
+                """,
+                unsafe_allow_html=True
+            )
             st.balloons()
         except Exception:
             logger.exception('Registration submission failed (Google authentication, receipt upload, or sheet append)')
