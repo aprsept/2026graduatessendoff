@@ -152,12 +152,19 @@ def google_clients():
 
 FIELDS = ['registration_id','submitted_at_utc','name','email','mobile','participant_type',
           'has_submission','submission_type','submission_minutes','submission_link',
-          'receipt_drive_file_id','payment_status','qr_token','email_status','checked_in_at_utc','verified_at_utc']
+          'receipt_drive_file_id','payment_status','qr_token','email_status','checked_in_at_utc','verified_at_utc',
+          'additional_guests','children_under_5','total_attendees','paying_attendees','amount_due_usd']
 
 def worksheet(client):
     sheet = client.open_by_key(st.secrets['google_sheet_id']).sheet1
-    if not sheet.row_values(1):
+    headers = sheet.row_values(1)
+    if not headers:
         sheet.append_row(FIELDS)
+    elif headers != FIELDS[:len(headers)]:
+        raise ValueError('Google Sheet columns do not match the expected layout. Check the header row before continuing.')
+    elif len(headers) < len(FIELDS):
+        from gspread.utils import rowcol_to_a1
+        sheet.update(range_name=f'{rowcol_to_a1(1,len(headers)+1)}:{rowcol_to_a1(1,len(FIELDS))}', values=[FIELDS[len(headers):]])
     return sheet
 
 def upload_receipt(drive, uploaded, participant_name):
@@ -188,7 +195,7 @@ def make_qr_png(token):
     qrcode.make(f"SENDOFF2026:{token}").save(out, format='PNG')
     return out.getvalue()
 
-def send_ticket(email, name, token):
+def send_ticket(email, name, token, total_attendees=1, amount_due=10):
     # Configure [smtp] in Streamlit Secrets. SMTP is used only on committee approval.
     smtp = st.secrets['smtp']
     msg = EmailMessage()
@@ -197,13 +204,16 @@ def send_ticket(email, name, token):
     msg['To'] = email
     msg.set_content(f"""Hello {name},
 
-Your $10 payment has been verified and your registration is confirmed!
+Your payment of ${amount_due:.2f} has been verified and your registration is confirmed!
+Your registration covers {total_attendees} attendee(s), including yourself.
+Children under 5 are included free of charge.
 
 2026 Graduates Send-off
 Friday, December 4, 2026 | 5:00–7:00 PM
 KJRI New York
 
-Please show the attached QR code at check-in. Each code can be checked in once.
+Please show the attached QR code at check-in for your whole group.
+Each group QR code can be checked in once; please arrive together.
 
 See you there!
 The Organizing Committee
@@ -222,7 +232,7 @@ st.markdown('''<div class="hero"><span class="pill">YOU’RE INVITED</span>
 <h1>2026 Graduates<br>Send-off</h1>
 <p>Friday, December 4, 2026 &nbsp;·&nbsp; 5:00–7:00 PM<br><b>KJRI New York</b></p></div>''',unsafe_allow_html=True)
 
-st.markdown('''Join us as we celebrate our 2026 graduates and send them off with warm wishes, memorable performances, and good company! Whether you're graduating or joining to celebrate, everyone is welcome to register. The engagement fee is **$10 per attendee**. Please send your payment via **Zelle to Septy at (646) 295-2209**, then upload your payment confirmation below.''')
+st.markdown('''Join us as we celebrate our 2026 graduates and send them off with warm wishes, memorable performances, and good company! Whether you're graduating or joining to celebrate, everyone is welcome to register. The engagement fee is **$10 per person aged 5 or older**. **Children under 5 attend free.** If you bring guests, register them together and pay for everyone aged 5 or older. Please send your payment via **Zelle to Septy at (646) 295-2209**, then upload your payment confirmation below.''')
 
 page = st.query_params.get('page','register')
 if page == 'admin':
@@ -258,6 +268,7 @@ if page == 'admin':
         records = [dict(zip(FIELDS, row + [''] * max(0,len(FIELDS)-len(row)))) for row in values[1:]]
         df = pd.DataFrame(records, columns=FIELDS)
         st.metric('Total registrations',len(df))
+        st.metric('Expected attendees (including guests)', sum(int(r.get('total_attendees') or 1) for r in records))
         if records:
             a,b,c = st.columns(3)
             a.metric('Pending',sum(r['payment_status']=='Pending verification' for r in records))
@@ -268,6 +279,7 @@ if page == 'admin':
             for row_num, r in enumerate(records, start=2):
                 with st.expander(f"{r['name']} · {r['registration_id']} · {r['payment_status']}"):
                     st.write(f"{r['email']} · {r['participant_type']}")
+                    st.write(f"Group size: {r.get('total_attendees') or 1} · Guests: {r.get('additional_guests') or 0} · Children under 5: {r.get('children_under_5') or 0} · Expected payment: ${float(r.get('amount_due_usd') or 10):.2f}")
                     st.write('Receipt Drive file ID:',r['receipt_drive_file_id'])
                     st.caption('Open the receipt in the private Google Drive folder and independently verify the Zelle transaction before approving.')
                     if r['payment_status'] == 'Pending verification':
@@ -278,7 +290,7 @@ if page == 'admin':
                             # Persist token and approval BEFORE email, to prevent issuing multiple tickets.
                             update_fields(sheet,row_num,{'payment_status':'Approved','qr_token':token,'verified_at_utc':now,'email_status':'Pending send'})
                             try:
-                                send_ticket(r['email'],r['name'],token)
+                                send_ticket(r['email'],r['name'],token, int(r.get('total_attendees') or 1), float(r.get('amount_due_usd') or 10))
                                 update_fields(sheet,row_num,{'email_status':'Sent'})
                                 st.success('Approved; QR email sent.')
                             except Exception:
@@ -292,7 +304,7 @@ if page == 'admin':
                         st.write('Email status:',r['email_status'] or 'Not sent')
                         if r['email_status']!='Sent' and st.button('Retry sending QR email',key=f"retry_{row_num}"):
                             try:
-                                send_ticket(r['email'],r['name'],r['qr_token'])
+                                send_ticket(r['email'],r['name'],r['qr_token'], int(r.get('total_attendees') or 1), float(r.get('amount_due_usd') or 10))
                                 update_fields(sheet,row_num,{'email_status':'Sent'})
                                 st.success('Email sent.')
                             except Exception:
@@ -341,7 +353,7 @@ if page == 'admin':
                             st.warning(f"Already checked in: {r['name']}")
                         else:
                             update_fields(sheet, i, {'checked_in_at_utc': datetime.now(timezone.utc).isoformat()})
-                            st.markdown(f'<div class="qr-success-message">Checked in successfully: {escape(r["name"])}</div>', unsafe_allow_html=True)
+                            st.markdown(f'<div class="qr-success-message">Checked in successfully: {escape(r["name"])} — group of {int(r.get("total_attendees") or 1)} attendee(s).</div>', unsafe_allow_html=True)
                             st.markdown('<div class="qr-info-message">Ready for the next participant. Clear the camera photo and scan the next ticket.</div>', unsafe_allow_html=True)
         else:
             st.markdown('<div class="admin-empty-state">No registrations yet.</div>', unsafe_allow_html=True)
@@ -357,6 +369,16 @@ with st.container(border=True):
     email = st.text_input('Email address *',max_chars=254)
     mobile = st.text_input('Mobile number *',placeholder='+1 (___) ___-____',max_chars=30)
     participant_type = st.selectbox('Are you a graduate or non-graduate? *',['Select an option','Graduate','Non-graduate'])
+    st.markdown('#### Bringing guests (+1)?')
+    bringing_guests = st.radio('Will you bring anyone with you? *', ['No', 'Yes'], horizontal=True)
+    additional_guests = 0
+    children_under_5 = 0
+    if bringing_guests == 'Yes':
+        additional_guests = st.number_input('How many additional people are you bringing? *', min_value=1, max_value=30, value=1, step=1)
+        children_under_5 = st.number_input('Of those additional people, how many are children under 5 years old?', min_value=0, max_value=int(additional_guests), value=0, step=1)
+    total_attendees = 1 + int(additional_guests)
+    paying_attendees = total_attendees - int(children_under_5)
+    amount_due = 10 * paying_attendees
     st.markdown('#### Optional event submission')
     has_submission = st.radio('Would you like to submit a performance or contribution for the event? *',['No','Yes'],horizontal=True)
     submission_type = ''
@@ -372,8 +394,15 @@ with st.container(border=True):
             st.caption('Upload using the link, then paste a shareable file link above if available. A standard folder link may not allow uploads without editor access.')
         else:
             st.info('The organizer will provide the Google Drive upload link. You can submit your registration now.')
-    st.markdown('#### Engagement fee · $10')
-    st.markdown('''<div class="payment-notice">Pay <strong>$10 via Zelle</strong> to <strong>Septy — (646) 295-2209</strong>.<br>Confirm the recipient in Zelle before sending. Payment will be manually verified.</div>''', unsafe_allow_html=True)
+    st.markdown('#### Engagement fee · $10 per paying attendee')
+    st.markdown(f'''<div class="payment-notice"><strong>Payment summary</strong><br>
+        Total people (including you): <strong>{total_attendees}</strong><br>
+        Children under 5 (free): <strong>{children_under_5}</strong><br>
+        Paying attendees: <strong>{paying_attendees}</strong> × $10.00<br>
+        <strong>Total amount to pay: ${amount_due:.2f}</strong><br><br>
+        Pay the full amount via <strong>Zelle to Septy — (646) 295-2209</strong>.<br>
+        For example, you + 1 spouse = <strong>$20.00</strong>. You + 1 child under 5 = <strong>$10.00</strong>.<br>
+        Confirm the recipient in Zelle before sending. Payment will be manually verified.</div>''', unsafe_allow_html=True)
     receipt = st.file_uploader('Upload proof of payment * (PDF, JPG or PNG)',type=['pdf','jpg','jpeg','png'],accept_multiple_files=False)
     consent = st.checkbox('I confirm that my information is accurate and agree that organizers may use it to manage this event. *')
     submitted = st.button('Submit registration',type='primary',use_container_width=True, key='submit_registration')
@@ -399,9 +428,9 @@ if submitted:
             registration_id = uuid4().hex[:12].upper()
             receipt_id = upload_receipt(drive,receipt,name.strip())
             record=[registration_id,datetime.now(timezone.utc).isoformat(),name.strip(),email.strip().lower(),mobile.strip(),participant_type,
-                has_submission,submission_type.strip(),submission_minutes if has_submission=='Yes' else '',submission_link.strip(),receipt_id,'Pending verification','','','','']
+                has_submission,submission_type.strip(),submission_minutes if has_submission=='Yes' else '',submission_link.strip(),receipt_id,'Pending verification','','','','',int(additional_guests),int(children_under_5),total_attendees,paying_attendees,amount_due]
             sheet.append_row(record,value_input_option='RAW')
-            st.markdown(f'''<div style="background:#174b3a;color:#b9ffcf;padding:18px 22px;border-radius:12px;border:1px solid #73e6a0;font-weight:650;line-height:1.7;">Registration received! Your registration ID is <strong style="color:#b9ffcf;">{registration_id}</strong>. The committee will verify your Zelle payment. Your entry QR code will be emailed only after approval.</div>''', unsafe_allow_html=True)
+            st.markdown(f'''<div style="background:#174b3a;color:#b9ffcf;padding:18px 22px;border-radius:12px;border:1px solid #73e6a0;font-weight:650;line-height:1.7;">Registration received! Your registration ID is <strong style="color:#b9ffcf;">{registration_id}</strong>. The committee will verify your payment of ${amount_due:.2f} for {total_attendees} attendee(s). Your group entry QR code will be emailed only after approval.</div>''', unsafe_allow_html=True)
             st.balloons()
         except Exception:
             logger.exception('Registration submission failed (Google authentication, receipt upload, or sheet append)')
