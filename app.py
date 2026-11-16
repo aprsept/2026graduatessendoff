@@ -83,10 +83,13 @@ st.markdown(f'''<style>
 [data-testid="stFileUploader"] [data-testid="stBaseButton-secondary"] * {{color:#ffffff !important;-webkit-text-fill-color:#ffffff !important;}}
 [data-testid="stLinkButton"] a,
 [data-testid="stFileUploader"] button {{background:#173d7c !important;border-color:#173d7c !important;}}
-/* Keep the uploader's surrounding instructions dark on light backgrounds. */
-[data-testid="stFileUploader"] label *,
+/* Keep the uploader label readable; make file-size/type helper text white. */
+[data-testid="stFileUploader"] label * {{color:#173451 !important;-webkit-text-fill-color:#173451 !important;}}
 [data-testid="stFileUploader"] small,
-[data-testid="stFileUploader"] [data-testid="stFileUploaderDropzoneInstructions"] * {{color:#173451 !important;-webkit-text-fill-color:#173451 !important;}}
+[data-testid="stFileUploader"] [data-testid="stFileUploaderDropzoneInstructions"] small,
+[data-testid="stFileUploader"] [data-testid="stFileUploaderDropzoneInstructions"] small *,
+[data-testid="stFileUploader"] [data-testid="stFileUploaderDropzoneInstructions"] [data-testid="stFileUploaderDropzoneInstructionsFileTypes"] {{color:#ffffff !important;-webkit-text-fill-color:#ffffff !important;}}
+[data-testid="stFileUploader"] [data-testid="stFileUploaderDropzoneInstructions"] p {{color:#173451 !important;-webkit-text-fill-color:#173451 !important;}}
 /* Organizer dashboard: buttons and their nested labels. */
 .stApp:has(.admin-page-marker) .stButton button,
 .stApp:has(.admin-page-marker) .stDownloadButton button {{background:#173d7c !important;color:#ffffff !important;border:1px solid #8dc7ff !important;font-weight:700 !important;}}
