@@ -13,7 +13,7 @@ from uuid import uuid4
 import pandas as pd
 import streamlit as st
 
-st.set_page_config(page_title="2026 Graduates Send-off", page_icon="🎓", layout="centered", initial_sidebar_state="collapsed")
+st.set_page_config(page_title="Class of 2026 Send-off", page_icon="🎓", layout="centered", initial_sidebar_state="collapsed")
 ROOT = Path(__file__).parent
 logger = logging.getLogger(__name__)
 
