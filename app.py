@@ -202,7 +202,7 @@ def send_ticket(email, name, token, total_attendees=1, amount_due=10):
     # Configure [smtp] in Streamlit Secrets. SMTP is used only on committee approval.
     smtp = st.secrets['smtp']
     msg = EmailMessage()
-    msg['Subject'] = '2026 Graduates Send-off — Your confirmed entry QR code'
+    msg['Subject'] = 'Class of 2026 Send-off — Your confirmed entry QR code'
     msg['From'] = smtp['sender_email']
     msg['To'] = email
     msg.set_content(f"""Hello {name},
@@ -211,7 +211,7 @@ Your payment of ${amount_due:.2f} has been verified and your registration is con
 Your registration covers {total_attendees} attendee(s), including yourself.
 Children under 5 are included free of charge.
 
-2026 Graduates Send-off
+Class of 2026 Send-off
 Friday, December 4, 2026 | 5:00–7:00 PM
 KJRI New York
 
@@ -232,7 +232,7 @@ def update_fields(sheet, row_number, changes):
 
 st.markdown(f'<img class="logo" src="data:image/png;base64,{logo}" alt="Columbia Indonesian Society logo">',unsafe_allow_html=True)
 st.markdown('''<div class="hero"><span class="pill">YOU’RE INVITED</span>
-<h1>2026 Graduates<br>Send-off</h1>
+<h1>Class of 2026<br>Send-off</h1>
 <p>Friday, December 4, 2026 &nbsp;·&nbsp; 5:00–7:00 PM<br><b>KJRI New York</b></p></div>''',unsafe_allow_html=True)
 
 st.markdown('''Join us as we celebrate our 2026 graduates and send them off with warm wishes, memorable performances, and good company! Whether you're graduating or joining to celebrate, everyone is welcome to register. The engagement fee is **$10 per person aged 5 or older**. **Children under 5 attend free.** If you bring guests, register them together and pay for everyone aged 5 or older. Please send your payment via **Zelle to Septy at (646) 295-2209**, then upload your payment confirmation below.''')
