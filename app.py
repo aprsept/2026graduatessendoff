@@ -28,7 +28,7 @@ st.markdown(f'''<style>
 .hero h1 {{font-family:Georgia,serif;font-size:clamp(2.4rem,6vw,4rem);line-height:1.12;margin:1rem 0;}}
 .hero p {{font-size:1.12rem;line-height:1.7;}}
 .pill {{display:inline-block;background:white;color:#263951;padding:.55rem 1.35rem;border-radius:999px;font-weight:750;letter-spacing:.06em;text-shadow:none;}}
-.logo {{display:block;margin-left:auto;width:215px;max-width:55%;}}
+.logo {{display:block;margin-left:auto;margin-right:auto;width:215px;max-width:55%;}}
 [data-testid="stForm"],div[data-testid="stVerticalBlockBorderWrapper"] {{background:rgba(255,255,255,.93);border-radius:20px;}}
 [data-testid="stForm"] {{padding:1.2rem 1.5rem;box-shadow:0 12px 35px #0e4b7733;}}
 .stButton button[kind="primary"],.stFormSubmitButton button {{background:#173d7c;color:white;border-radius:12px;border:none;}}
