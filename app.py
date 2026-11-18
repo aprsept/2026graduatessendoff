@@ -235,7 +235,7 @@ st.markdown('''<div class="hero"><span class="pill">YOU’RE INVITED</span>
 <h1>Class of 2026<br>Send-off</h1>
 <p>Friday, December 4, 2026 &nbsp;·&nbsp; 5:00–7:00 PM<br><b>KJRI New York</b></p></div>''',unsafe_allow_html=True)
 
-st.markdown('''Join us as we celebrate our 2026 graduates and send them off with warm wishes, memorable performances, and good company! Whether you're graduating or joining to celebrate, everyone is welcome to register. The engagement fee is **$10 per person aged 5 or older**. **Children under 5 attend free.** If you bring guests, register them together and pay for everyone aged 5 or older. Please send your payment via **Zelle to Septy at (646) 295-2209**, then upload your payment confirmation below.''')
+st.markdown('''Join us as we celebrate our 2026 graduates and send them off with warm wishes, memorable performances, and good company! Whether you're graduating or joining to celebrate, everyone is welcome to register. The engagement fee is **$15 per person aged 5 or older**. **Children under 5 attend free.** If you bring guests, register them together and pay for everyone aged 5 or older. Please send your payment via **Zelle to Septy at (646) 295-2209**, then upload your payment confirmation below.''')
 
 page = st.query_params.get('page','register')
 if page == 'admin':
@@ -397,14 +397,14 @@ with st.container(border=True):
             st.caption('Upload using the link, then paste a shareable file link above if available. A standard folder link may not allow uploads without editor access.')
         else:
             st.info('The organizer will provide the Google Drive upload link. You can submit your registration now.')
-    st.markdown('#### Engagement fee · $10 per paying attendee')
+    st.markdown('#### Engagement fee · $15 per paying attendee')
     st.markdown(f'''<div class="payment-notice"><strong>Payment summary</strong><br>
         Total people (including you): <strong>{total_attendees}</strong><br>
         Children under 5 (free): <strong>{children_under_5}</strong><br>
-        Paying attendees: <strong>{paying_attendees}</strong> × $10.00<br>
+        Paying attendees: <strong>{paying_attendees}</strong> × $15.00<br>
         <strong>Total amount to pay: ${amount_due:.2f}</strong><br><br>
         Pay the full amount via <strong>Zelle to Septy — (646) 295-2209</strong>.<br>
-        For example, you + 1 spouse = <strong>$20.00</strong>. You + 1 child under 5 = <strong>$10.00</strong>.<br>
+        For example, you + 1 spouse = <strong>$20.00</strong>. You + 1 child under 5 = <strong>$15.00</strong>.<br>
         Confirm the recipient in Zelle before sending. Payment will be manually verified.</div>''', unsafe_allow_html=True)
     receipt = st.file_uploader('Upload proof of payment * (PDF, JPG or PNG)',type=['pdf','jpg','jpeg','png'],accept_multiple_files=False)
     consent = st.checkbox('I confirm that my information is accurate and agree that organizers may use it to manage this event. *')
