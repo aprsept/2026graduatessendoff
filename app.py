@@ -404,7 +404,7 @@ with st.container(border=True):
         Paying attendees: <strong>{paying_attendees}</strong> × $15.00<br>
         <strong>Total amount to pay: ${amount_due:.2f}</strong><br><br>
         Pay the full amount via <strong>Zelle to Septy — (646) 295-2209</strong>.<br>
-        For example, you + 1 spouse = <strong>$20.00</strong>. You + 1 child under 5 = <strong>$15.00</strong>.<br>
+        For example, you + 1 spouse = <strong>$30.00</strong>. You + 1 child under 5 = <strong>$15.00</strong>.<br>
         Confirm the recipient in Zelle before sending. Payment will be manually verified.</div>''', unsafe_allow_html=True)
     receipt = st.file_uploader('Upload proof of payment * (PDF, JPG or PNG)',type=['pdf','jpg','jpeg','png'],accept_multiple_files=False)
     consent = st.checkbox('I confirm that my information is accurate and agree that organizers may use it to manage this event. *')
