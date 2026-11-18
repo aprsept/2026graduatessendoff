@@ -293,7 +293,7 @@ if page == 'admin':
                             # Persist token and approval BEFORE email, to prevent issuing multiple tickets.
                             update_fields(sheet,row_num,{'payment_status':'Approved','qr_token':token,'verified_at_utc':now,'email_status':'Pending send'})
                             try:
-                                send_ticket(r['email'],r['name'],token, int(r.get('total_attendees') or 1), float(r.get('amount_due_usd') or 10))
+                                send_ticket(r['email'],r['name'],token, int(r.get('total_attendees') or 1), float(r.get('amount_due_usd') or 15))
                                 update_fields(sheet,row_num,{'email_status':'Sent'})
                                 st.success('Approved; QR email sent.')
                             except Exception:
@@ -307,7 +307,7 @@ if page == 'admin':
                         st.write('Email status:',r['email_status'] or 'Not sent')
                         if r['email_status']!='Sent' and st.button('Retry sending QR email',key=f"retry_{row_num}"):
                             try:
-                                send_ticket(r['email'],r['name'],r['qr_token'], int(r.get('total_attendees') or 1), float(r.get('amount_due_usd') or 10))
+                                send_ticket(r['email'],r['name'],r['qr_token'], int(r.get('total_attendees') or 1), float(r.get('amount_due_usd') or 15))
                                 update_fields(sheet,row_num,{'email_status':'Sent'})
                                 st.success('Email sent.')
                             except Exception:
@@ -381,7 +381,7 @@ with st.container(border=True):
         children_under_5 = st.number_input('Of those additional people, how many are children under 5 years old?', min_value=0, max_value=int(additional_guests), value=0, step=1)
     total_attendees = 1 + int(additional_guests)
     paying_attendees = total_attendees - int(children_under_5)
-    amount_due = 10 * paying_attendees
+    amount_due = 15 * paying_attendees
     st.markdown('#### Optional event submission')
     has_submission = st.radio('Would you like to submit a performance or contribution for the event? *',['No','Yes'],horizontal=True)
     submission_type = ''
