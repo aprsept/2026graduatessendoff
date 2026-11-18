@@ -198,7 +198,7 @@ def make_qr_png(token):
     qrcode.make(f"SENDOFF2026:{token}").save(out, format='PNG')
     return out.getvalue()
 
-def send_ticket(email, name, token, total_attendees=1, amount_due=10):
+def send_ticket(email, name, token, total_attendees=1, amount_due=15):
     # Configure [smtp] in Streamlit Secrets. SMTP is used only on committee approval.
     smtp = st.secrets['smtp']
     msg = EmailMessage()
