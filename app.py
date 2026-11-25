@@ -192,6 +192,24 @@ def upload_receipt(drive, uploaded, participant_name):
     ).execute()
     return file['id']
 
+def upload_event_media(drive, files, registration_id):
+    from googleapiclient.http import MediaIoBaseUpload
+    folder_id = st.secrets.get('submission_folder_id', '')
+    if not folder_id:
+        # Keep event media separate from payment receipts, in a private Drive folder.
+        folder = drive.files().create(body={'name': 'Send-off event media ' + registration_id, 'mimeType': 'application/vnd.google-apps.folder'}, fields='id').execute()
+        folder_id = folder['id']
+    links = []
+    mime_types = {'jpg':'image/jpeg','jpeg':'image/jpeg','png':'image/png','heic':'image/heic','mp4':'video/mp4','mov':'video/quicktime','m4v':'video/mp4','webm':'video/webm'}
+    for uploaded in files:
+        extension = uploaded.name.rsplit('.', 1)[-1].lower()
+        filename = registration_id + '_' + Path(uploaded.name).name
+        uploaded.seek(0)
+        media = MediaIoBaseUpload(uploaded, mimetype=mime_types[extension], resumable=True)
+        result = drive.files().create(body={'name': filename, 'parents': [folder_id]}, media_body=media, fields='id').execute()
+        links.append('https://drive.google.com/file/d/' + result['id'] + '/view')
+    return '\n'.join(links)
+
 def make_qr_png(token):
     import qrcode
     out = io.BytesIO()
@@ -282,7 +300,12 @@ if page == 'admin':
             for row_num, r in enumerate(records, start=2):
                 with st.expander(f"{r['name']} · {r['registration_id']} · {r['payment_status']}"):
                     st.write(f"{r['email']} · {r['participant_type']}")
-                    st.write(f"Group size: {r.get('total_attendees') or 1} · Guests: {r.get('additional_guests') or 0} · Children under 5: {r.get('children_under_5') or 0} · Expected payment: ${float(r.get('amount_due_usd') or 10):.2f}")
+                    st.write(f"Group size: {r.get('total_attendees') or 1} · Guests: {r.get('additional_guests') or 0} · Children under 5: {r.get('children_under_5') or 0} · Expected payment: ${float(r.get('amount_due_usd') or 15):.2f}")
+                    if r['has_submission'] == 'Yes':
+                        st.write('Event submission:', r['submission_type'])
+                        if r['submission_link']:
+                            for media_link in r['submission_link'].splitlines():
+                                st.write(media_link)
                     st.write('Receipt Drive file ID:',r['receipt_drive_file_id'])
                     st.caption('Open the receipt in the private Google Drive folder and independently verify the Zelle transaction before approving.')
                     if r['payment_status'] == 'Pending verification':
@@ -383,20 +406,20 @@ with st.container(border=True):
     paying_attendees = total_attendees - int(children_under_5)
     amount_due = 15 * paying_attendees
     st.markdown('#### Optional event submission')
-    has_submission = st.radio('Would you like to submit a performance or contribution for the event? *',['No','Yes'],horizontal=True)
+    has_submission = st.radio('Would you like to submit photo or video for the event?', ['No', 'Yes'], horizontal=True)
     submission_type = ''
-    submission_minutes = 0
+    submission_minutes = ''
     submission_link = ''
+    submission_files = []
     if has_submission == 'Yes':
-        submission_type = st.text_input('What kind of submission? *',placeholder='e.g., video, live singing, dance, speech, stand-up comedy')
-        submission_minutes = st.number_input('How many minutes will your submission take? *',min_value=1,max_value=120,value=5,step=1)
-        submission_link = st.text_input('Link to your submission (optional)',placeholder='https://drive.google.com/...')
-        upload_url = st.secrets.get('submission_upload_url','')
-        if upload_url:
-            st.link_button('Upload your submission to Google Drive', upload_url, use_container_width=True)
-            st.caption('Upload using the link, then paste a shareable file link above if available. A standard folder link may not allow uploads without editor access.')
-        else:
-            st.info('The organizer will provide the Google Drive upload link. You can submit your registration now.')
+        st.markdown('You have two options to submit your photos or videos:')
+        st.markdown('**Option 1: Upload through this website**')
+        submission_files = st.file_uploader('Upload your photos or videos', type=['jpg','jpeg','png','heic','mp4','mov','m4v','webm'], accept_multiple_files=True, key='event_media')
+        st.caption('Your files will be saved when you submit your registration. Maximum 200 MB total.')
+        st.markdown('**Option 2: Upload through the submission link**')
+        st.markdown('[https://bit.ly/sendoff26-submission](https://bit.ly/sendoff26-submission)')
+        st.caption('If you use the link, return here to complete your registration. You do not need to upload the same files twice.')
+        submission_type = 'Upload through this website' if submission_files else 'External link (not verified)'
     st.markdown('#### Engagement fee · $15 per paying attendee')
     st.markdown(f'''<div class="payment-notice"><strong>Payment summary</strong><br>
         Total people (including you): <strong>{total_attendees}</strong><br>
@@ -416,7 +439,8 @@ if submitted:
     if not re.fullmatch(r'[^\s@]+@[^\s@]+\.[^\s@]+',email.strip()): errors.append('Enter a valid email address.')
     if len(re.sub(r'\D','',mobile)) < 7: errors.append('Enter a valid mobile number.')
     if participant_type == 'Select an option': errors.append('Select graduate or non-graduate.')
-    if has_submission == 'Yes' and not submission_type.strip(): errors.append('Describe your submission.')
+    if submission_files and sum(f.size for f in submission_files) > 200*1024*1024:
+        errors.append('Submission files must total 200 MB or less.')
     if receipt is None: errors.append('Upload your proof of payment.')
     elif receipt.size > 10*1024*1024: errors.append('Payment proof must be 10 MB or smaller.')
     if not consent: errors.append('Please confirm the consent checkbox.')
@@ -429,6 +453,8 @@ if submitted:
             sheets, drive = google_clients()
             sheet = worksheet(sheets)
             registration_id = uuid4().hex[:12].upper()
+            if submission_files:
+                submission_link = upload_event_media(drive, submission_files, registration_id)
             receipt_id = upload_receipt(drive,receipt,name.strip())
             record=[registration_id,datetime.now(timezone.utc).isoformat(),name.strip(),email.strip().lower(),mobile.strip(),participant_type,
                 has_submission,submission_type.strip(),submission_minutes if has_submission=='Yes' else '',submission_link.strip(),receipt_id,'Pending verification','','','','',int(additional_guests),int(children_under_5),total_attendees,paying_attendees,amount_due]
