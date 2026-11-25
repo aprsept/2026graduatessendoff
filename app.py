@@ -417,7 +417,7 @@ with st.container(border=True):
         submission_files = st.file_uploader('Upload your photos or videos', type=['jpg','jpeg','png','heic','mp4','mov','m4v','webm'], accept_multiple_files=True, key='event_media')
         st.caption('Your files will be saved when you submit your registration. Maximum 200 MB total.')
         st.markdown('**Option 2: Upload through the submission link**')
-        st.markdown('[https://bit.ly/sendoff26-submission](https://bit.ly/sendoff26-submission)')
+        st.markdown('<a href="https://bit.ly/sendoff26-submission" target="_blank" rel="noopener noreferrer" style="color:#102d50 !important;font-weight:800;font-size:1.15rem;text-decoration:underline !important;">https://bit.ly/sendoff26-submission</a>', unsafe_allow_html=True)
         st.caption('If you use the link, return here to complete your registration. You do not need to upload the same files twice.')
         submission_type = 'Upload through this website' if submission_files else 'External link (not verified)'
     st.markdown('#### Engagement fee · $15 per paying attendee')
