@@ -122,6 +122,10 @@ st.markdown(f'''<style>
 .st-key-submit_registration button {{background:#173d7c !important;border:1px solid #173d7c !important;}}
 .st-key-submit_registration button:hover {{background:#245a9d !important;}}
 
+/* Force the submission hyperlink to remain readable in both themes. */
+.stApp [data-testid="stMarkdownContainer"] a[href="https://bit.ly/sendoff26-submission"],
+.stApp [data-testid="stMarkdownContainer"] a[href="https://bit.ly/sendoff26-submission"] * {{color:#102d50 !important;-webkit-text-fill-color:#102d50 !important;font-weight:900 !important;opacity:1 !important;text-decoration:underline !important;}}
+.stApp [data-testid="stMarkdownContainer"] a[href="https://bit.ly/sendoff26-submission"] {{background-color:#ffffff !important;display:inline-block;padding:8px 12px;border-radius:6px;overflow-wrap:anywhere;max-width:100%;}}
 </style>''', unsafe_allow_html=True)
 
 # Production storage: Google Sheets for registration records and Google Drive for receipts.
@@ -417,7 +421,7 @@ with st.container(border=True):
         submission_files = st.file_uploader('Upload your photos or videos', type=['jpg','jpeg','png','heic','mp4','mov','m4v','webm'], accept_multiple_files=True, key='event_media')
         st.caption('Your files will be saved when you submit your registration. Maximum 200 MB total.')
         st.markdown('**Option 2: Upload through the submission link**')
-        st.markdown('<a href="https://bit.ly/sendoff26-submission" target="_blank" rel="noopener noreferrer" style="color:#102d50 !important;font-weight:800;font-size:1.15rem;text-decoration:underline !important;">https://bit.ly/sendoff26-submission</a>', unsafe_allow_html=True)
+        st.markdown('<a href="https://bit.ly/sendoff26-submission" target="_blank" rel="noopener noreferrer" style="color:#102d50 !important;-webkit-text-fill-color:#102d50 !important;font-weight:900 !important;opacity:1 !important;font-size:1.15rem;text-decoration:underline !important;background-color:#ffffff !important;display:inline-block;padding:8px 12px;border-radius:6px;overflow-wrap:anywhere;max-width:100%;">https://bit.ly/sendoff26-submission</a>', unsafe_allow_html=True)
         st.caption('If you use the link, return here to complete your registration. You do not need to upload the same files twice.')
         submission_type = 'Upload through this website' if submission_files else 'External link (not verified)'
     st.markdown('#### Engagement fee · $15 per paying attendee')
